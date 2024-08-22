@@ -1,0 +1,84 @@
+name: CI_Build
+on:
+  push:
+    branches: 
+      - main
+  pull_request:
+  
+env:
+  AZURE_ARTIFACTS_FEED_URL: https://pkgs.dev.azure.com/altronsolution/Production/_packaging/as-tf-core-modules/nuget/v3/index.json
+  BUILD_CONFIGURATION: 'Release'    # set this to the appropriate build configuration
+  DOTNET_VERSION: '3.1.x' 
+  VERSION_MAJOR_MINOR_PATCH: '1.0.0' #The major.minor.patch part of Semantic version 2 (major.minor.patch.revision)
+  PROJECT_FILE_RELATIVE_PATH: './as-tf-core-modules.csproj'
+  NUGET_OUTPUT_FOLDER_RELATIVE_PATH: './bin/packed'
+  TAG_PREFIX: 'v'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repo
+      - uses: actions/checkout@v2
+
+      # Setup .NET Core SDK
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          source-url: ${{ env.AZURE_ARTIFACTS_FEED_URL }}
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.AZURE_DEVOPS_TOKEN }}
+
+      # Run dotnet build and package
+      - name: dotnet build and test
+        run: |
+          dotnet restore
+          dotnet build "${{ env.PROJECT_FILE_RELATIVE_PATH }}" --configuration "${{ env.BUILD_CONFIGURATION }}"
+          dotnet test "${{ env.PROJECT_FILE_RELATIVE_PATH }}" --configuration "${{ env.BUILD_CONFIGURATION }}"
+          
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ./modules/
+          quiet: false # optional: display only failed checks
+          soft_fail: false # optional: do not return an error code if there are failed checks
+          framework: terraform # optional: run only on a specific infrastructure {cloudformation,terraform,kubernetes,arm,bicep,all}
+          skip_check: CKV2_AZURE_1,CKV2_AZURE_18,CKV_AZURE_34,CKV2_AZURE_21,CKV_AZURE_59,CKV_AZURE_206,CKV2_AZURE_33,CKV2_AZURE_41,CKV2_AZURE_40,CKV2_AZURE_38
+
+      - name: Super Linter
+        uses: github/super-linter@v4
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: main
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_JSCPD: false 
+          VALIDATE_YAML: false
+          FILTER_REGEX_EXCLUDE: .*.md
+          #VALIDATE_POWERSHELL: false # ENVVAR has to be decrypted and passed as string. This will be then secured and be used for KV secret creation.
+          # Fails while trying to download module which can't happen in GITHUB. Artifacts are available in Azure DevOps and this will be captured in TF_PLAN stage.
+
+          DISABLE_ERRORS: true
+          ## TERRAFORM_TFLINT -> Returns failed to fetch latest version for terraform provider, error: error preparing the providers list endpoint, error: hostname can't be empty
+          
+    # tag build
+      - name: tag build
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag -a "${{ env.TAG_PREFIX }}${{ env.VERSION_MAJOR_MINOR_PATCH }}.${{ github.run_number }}" -m "CI build ${{ env.VERSION_MAJOR_MINOR_PATCH }}.${{ github.run_number }}"
+          git push -v origin "refs/tags/${{ env.TAG_PREFIX }}${{ env.VERSION_MAJOR_MINOR_PATCH }}.${{ github.run_number }}"
+
+      # Run dotnet build and pack
+      - name: dotnet build and pack
+        if: github.ref == 'refs/heads/main'
+        run: |
+          dotnet restore
+          dotnet build "${{ env.PROJECT_FILE_RELATIVE_PATH }}" --configuration "${{ env.BUILD_CONFIGURATION }}" -p:Version="${{ env.VERSION_MAJOR_MINOR_PATCH }}.${{ github.run_number }}"
+          dotnet pack "${{ env.PROJECT_FILE_RELATIVE_PATH }}" --output "${{ env.NUGET_OUTPUT_FOLDER_RELATIVE_PATH }}" --configuration "${{ env.BUILD_CONFIGURATION }}" --no-dependencies -p:PackageVersion="${{ env.VERSION_MAJOR_MINOR_PATCH }}.${{ github.run_number }}"
+
+    # Publish the package to Azure Artifacts
+      - name: dotnet publish
+        if: github.ref == 'refs/heads/main'
+        run: dotnet nuget push --skip-duplicate --api-key AzureArtifactsKey "${{ env.NUGET_OUTPUT_FOLDER_RELATIVE_PATH }}/*.nupkg"

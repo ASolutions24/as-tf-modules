@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <PackageId>AS-TF-CORE-MODULES</PackageId>
+    <Authors>wrap</Authors>
+    <Company>AS</Company>
+    <Product>AS-TF-CORE-MODULES</Product>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="modules\**\*" CopyToPublishDirectory="Always" />
+  </ItemGroup>
+</Project>
