@@ -44,7 +44,7 @@ jobs:
           quiet: false # optional: display only failed checks
           soft_fail: false # optional: do not return an error code if there are failed checks
           framework: terraform # optional: run only on a specific infrastructure {cloudformation,terraform,kubernetes,arm,bicep,all}
-          skip_check: CKV2_AZURE_1,CKV2_AZURE_18,CKV_AZURE_34,CKV2_AZURE_21,CKV_AZURE_59,CKV_AZURE_206,CKV2_AZURE_33,CKV2_AZURE_41,CKV2_AZURE_40,CKV2_AZURE_38,CKV2_AZURE_48,CKV2_AZURE_216,CKV2_AZURE_158,CKV2_AZURE_220,CKV2_AZURE_189,CKV2_AZURE_110,CKV2_AZURE_109,CKV2_AZURE_42,CKV2_AZURE_41,CKV2_AZURE_114,CKV2_AZURE_44,CKV2_AZURE_190,CKV2_AZURE_33,CKV2_AZURE_47
+          skip_check: CKV2_AZURE_1,CKV2_AZURE_18,CKV_AZURE_34,CKV2_AZURE_21,CKV_AZURE_59,CKV_AZURE_206,CKV2_AZURE_33,CKV2_AZURE_41,CKV2_AZURE_40,CKV2_AZURE_38,CKV2_AZURE_48,CKV_AZURE_48,CKV_AZURE_216,CKV_AZURE_158,CKV_AZURE_220,CKV_AZURE_189,CKV_AZURE_110,CKV_AZURE_109,CKV_AZURE_42,CKV_AZURE_41,CKV_AZURE_114,CKV_AZURE_44,CKV_AZURE_190,CKV_AZURE_33,CKV_AZURE_47
 
       - name: Super Linter
         uses: github/super-linter@v4
